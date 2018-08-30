@@ -1,11 +1,11 @@
-package com.guitar.db.repository;
+package com.nsv.guitarapp.repository;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
 import org.springframework.stereotype.Repository;
 
-import com.guitar.db.model.ModelType;
+import com.nsv.guitarapp.model.ModelType;
 
 @Repository
 public class ModelTypeRepository {

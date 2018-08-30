@@ -1,0 +1,357 @@
+@Repository
+public interface ModelJpaRepository extends JpaRepository<Model, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from user u where u.name= :name")
+    @Modifying
+    List<User> findUsersByName(@Param("name") String name)
+
+ //Query Method
+    List<Model> findByPriceGreaterThanEqualAndPriceLessThanEqual(BigDecimal lowestPrice, BigDecimal highestPrice);
+    List<Model> findByModelTypeNameIn(List<String> modelTypeNames);
+
+//@Query Annotation with JPQL query
+//@Param parameters to the JPQL query
+
+    @Query("select m from Model m where m.price >= ?1 and m.price <= ?2 and m.woodType like ?3")
+    List<Model> queryByLowestHighestAndWood(BigDecimal lowest,
+                                            BigDecimal highest,
+                                            String wood);
+
+    @Query("select m from Model m where m.price >= :lowest and m.price <= :highest and m.woodType like :wood")
+    List<Model> queryByLowestHighestAndWood(@Param("lowest") BigDecimal lowest,
+                                            @Param("highest") BigDecimal highest,
+                                            @Param("wood") String wood);
+
+}
+************************************************************************************************************
+
+1. Spring Data JPA enhances Standard JPA with Spring
+2. JPA - Java Persistance API
+3. As a Java Developer, you just define the contract in the interface and spring provides the implementation for that contract.
+3. Query DSL is used to generate the implementation for the repository interfaces
+4. DSL - Domain Specific Language
+5. It provides Auditing and Paging
+6. Choosing Data Access Layer
+	6a. Few Tables Or Native SQL Need - JDBC or Spring JDBC with Native SQL
+	6b. Lot of writes like Insert, Update , Delete - Batch, Spring Batch, Hadoop
+
+Note : JPA or ORM creates object graph in memory , then updates it and persist in the data store. So these frameworks are not suitable for massive writes
+
+7. Spring Data provides Spring Data Commons artifact that defines the General Repository contract and functionality[crud operations, dynamic query generation], that all Spring Data projects must adhere and comply with.
+8. Spring Data JPA is one of the project which implements Spring Data Commons API and contracts
+9. Repositories + Entities form DAO
+
+
+Steps
+1. How to configure/install spring data jpa
+	Add Maven Dependency for spring-data-jpa
+<!-- https://mvnrepository.com/artifact/org.springframework.data/spring-data-jpa -->
+<dependency>
+    <groupId>org.springframework.data</groupId>
+    <artifactId>spring-data-jpa</artifactId>
+    <version>1.11.7.RELEASE</version>
+</dependency>
+
+2. Configure and load the jpa repositories.Tell Spring to load the jpa repositories.
+Spring Data Configuration
+Spring Config : XML
+    a. Define jpa namespace
+    namespace => jpql => xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+    schema location => jpql => http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa.xsd
+    b. <jpa:repositories base-package="com.nsv.guitarapp.repository">
+
+
+Spring Config : Java / SpringBoot
+    @EnableJpaRepositories
+    	public class AppConfig { ... }
+
+
+3. Create Repository Interface implementing the JpaReposity
+public interface GuitarJpaRepository extends JpaReposity<Guitar, Long>{}
+Guitar - Entity Type
+Long - Primary Key DataType
+
+4. Add Test
+@ContextConfiguration(locations={"classpath:com/nsv/guitarapp/applicationTests-context.xml"})
+@RunWith(SpringJUnit4ClassRunner.class)
+public class GuitarPersistenceTests {
+	@Autowired
+	private GuitarJpaRepository guitarJpaRepository;
+
+	@Test
+	public void testJpafindAll(){
+		List<Guitar> locations = guitarJpaRepository.findAll();
+		Assert.assertNotNull(locations);
+	}
+}
+
+
+Points to remember while doing dependency injections
+1. Controllers can inject services, repositories
+2. Services can inject repositories
+3. Services can inject other services
+4. Repositories can inject other repositories
+
+annotate Repositories with @Repository stereotype annotation
+
+1. JPA Reositories are Interfaces
+2. Each JPA Repository is mapped to one Entity
+
+JpaRepository Features
+1. CRUD Operations
+2. Query DSL
+3. Paging and Sorting
+4. Helpers (count(), exist(), flush(), deleteInBatch())
+
+Hierarchy
+JpaRepository I -> PagingAndSortingRepository I -> CrudRepository I -> Repository I
+
+Spring Data Repositories
+1. Repository I -> Query DSL
+2. CrudRepository I -> CRUD Ops, count(), exist()
+3. PagingAndSortingRepository I -> Paging and Sorting
+
+Spring Data JPA Repository
+1. JpaRepository I -> flush(), deleteInBatch()
+
+
+What does flush() do?
+flush() is a method call on persistanceContext, that takes all the changes and push them to database before transaction gets comiitted.
+
+Why sometimes we dont write @Repository annotation and still it works ?
+check the app-context.xml. we have <jpa:repositories base-package="com.nsv.guitarapp.repository">. Spring will scan the jpa base-package and see all the classes/interfaces which are implementing the JpaRepository and provides the implementation.
+
+***************************************************************************************
+Query DSL
+1. DSL - Domain Specific Language
+2. Query Method
+List<Location> findByStateLike(String state);
+findBy<PropertyName><LikeCondition>
+    Spring Data JPA provides implementation for the query method.
+
+Whenever Spring Data JPA encounters query methods, then
+1. Query Parser looks for
+    find..By , read..By, query..By, count..By, get..By
+2. Criteria uses JPA Entity attribute name
+3. Multiple Criteria Combined with ["And","Or"]
+
+Query Method
+List<Location> findByStateLike(String state);
+
+Spring Data JPA Implementation
+JPQL
+select l from location where l.state like :state
+
+ORM Framework converts JPQL to SQL
+SQL
+select * from location l where l.state like ?
+
+Keyword
+And - findByStateAndCountry("Utah","US") => jpql => where state=? and country=?
+Or - findByStateOrCountry("Utah","Utah") => jpql => where state=? or country=?
+default - findByState("Utah") => jpql => where state=?
+Is - findByStateIs("Utah") => jpql => where state=?
+Equals - findByStateEquals("Utah") => jpql => where state=?
+Not - findByStateNot("Utah") => jpql => where state <> ?
+    findByStateIsOrCountryNot(String state, String country)
+    findByStateNot(String state)
+Like - findByStateLike("Cali%") => jpql => where state like ?1
+NotLike - findByStateNotLike("AL%") => jpql => where state not like ?1
+StartingWith - Similar to like - findByStateStartingWith("AL") => jpql => where state like ?1 ; it will automatically add %at the end
+EndingWith - Similar to like - findByStateEndingWith("AL") => jpql => where state like ?1 ; it will automatically add %at the beginning
+Containing - Similar to like - findByStateContaining("AL") => jpql => where state like ?1 ; it will automatically add % at both beginning & end
+--Numbers Comparision
+LessThan - findByPriceLessThan(20) => jpql => where price < ?1
+LessThanEqual - findByPriceLessThanEqual(20) => jpql => where price <= ?1
+GreaterThan - findByPriceGreaterThan(20)=> jpql => where price > ?1
+GreaterThanEqual - findByPriceGreaterThanEqual(20)=> jpql => where price >= ?1
+--Date Comparision
+Before - findByFoundedDateBefore(dateObj) => jpql => where date < ?1
+After - findByFoundedDateAfter(dateObj) => jpql => where date > ?1
+Between - findByFoundedDateBetween(dateObj1,dateObj2) => jpql => where date between ?1 and ?2
+--Boolean Comparision
+True - findByActiveTrue() => jpql => where active = true
+False - findByActiveFalse() => jpql => where active = false
+--Null Comparision
+IsNull - findByStateIsNull() => jpql => where state is null
+IsNotNull - findByStateIsNotNull() => jpql => where state not null
+NotNull - findByStateNotNull() => jpql => where state  not null
+--column value is a part of collection of value
+In - findByStateIn(Collection<String> states) => jpql => where state in ?1
+NotIn - findByStateNotIn(Collection<String> states) => jpql => where state not in ?1
+--
+IgnoreCase - findByStateIgnoreCase("ca") => jpql => where UPPER(state) = UPPER(?1)
+--
+OrderBy - helps to order by element
+        - should be at the last in the methodname
+        Asc -> findByStateOrderByCountryAsc("alaska") => jpql => where state =?1 order by country asc
+        Desc -> findByStateOrderByCountryDesc("alaska") => jpql => where state =?1 order by country desc
+
+--Limit the results - First, Top, Distinct
+First - findFirstByState("AL") => where state=?1 limit 1
+Top - findTop5ByState("AL") => where state=?1 limit 5
+Distinct - Removes duplicate records -findDistinctManufacturerByState("AL") => select distinct ... where state=?1
+
+
+@Repository
+public interface ModelJpaRepository extends JpaRepository<Model, Long> {
+    List<Model> findByPriceGreaterThanEqualAndPriceLessThanEqual(BigDecimal lowestPrice, BigDecimal highestPrice);
+    List<Model> findByModelTypeNameIn(List<String> modelTypeNames);
+
+    @Query("select m from Model m where m.price >= ?1 and m.price <= ?2 and m.woodType like ?3")
+    List<Model> queryByLowestHighestAndWood(BigDecimal lowest,
+                                            BigDecimal highest,
+                                            String wood);
+}
+
+@Query Options
+1. Named Parameters :
+    a. It replaces ?1 with :parameterName.
+    b. we can match the method parameter to the Named Parameter using @Param("NamedParameter")
+
+    @Query("select m from Model m where m.price >= :lowest and m.price <= :highest and m.woodType like :wood")
+    List<Model> queryByLowestHighestAndWood(@Param("lowest") BigDecimal lowest,
+                                            @Param("highest") BigDecimal highest,
+                                            @Param("wood") String wood);
+2. Native Queries : we can use Native SQL queries instead of JPQL with the help of nativeQuery=true option
+    @Query("select m from Model m where m.name=?0", nativeQuery=true)
+    List<Model> queryByName(String name);
+3. Modifiable Queries : We use Modifiable queries to update and delete
+    @Modifying
+    @Query("update Model m set m.name=?1")
+    int updateByName(String name);
+
+Note :
+1. In case of JPQL params start at ?1, ?2 & so on
+2. In case of Native SQL queries params start at ?0 , ?1 & so on.
+
+Spring Data JPA validates Query Methods and Query Annotations at the application start up time rather than run time.
+
+****************************************************************
+JPA Named Queries
+1. NamedQueries are defined in Entity class with @NamedQuery annotation
+2. It contains name and jpql query
+@Entity
+@NamedQuery(
+    name="Model.namedFindAllModelsByType",
+    query="select m from Model m where m.modelType.name = :name"
+)
+public class Model{}
+
+Spring Data JPA sets up(handles) NamedQueries in 2 ways
+
+@Repository
+public interface ModelJpaRepository extends JpaRepository<Model, Long>{
+//Approach 1:
+    List<Model> namedFindAllModelsByType(@Param("name") String name);
+//Approach 2:
+    @Query(name="Model.namedFindAllModelsByType")
+    List<Model> findAllModelsByType(@Param("name") String name);
+}
+***************************************************************************************************************
+Native SQL Support
+1. Native Queries : we can use Native SQL queries instead of JPQL with the help of nativeQuery=true option
+    @Query("select m from Model m where m.name=?0", nativeQuery=true)
+    List<Model> queryByName(String name);
+2. We can define @NamedNativeQuery on the entity.Then Spring Data JPA handles this @NamedNativeQuery similar to @NamedQuery
+@Entity
+@NamedNativeQuery(
+    name="Manufacturer.getAllThatSellAccoustics",
+    query="select m.id, m.name from Manufacturer m
+     LEFT JOIN Model mod on (m.id = mod.id)
+     LEFT JOIN ModelType mt on (mt.id = mod.id)
+     where mt.name=?", resultClass= Manufacturer.class)
+)
+public class Manufacturer{}
+
+In the JPA repository
+we can have
+1. Query DSL Method
+2. @Query Annotation
+3. NamedQuery
+4. NamedNativeQuery
+
+Where should you define your queries
+We can define Queries
+1. In Entity using @NamedQuery and @NamedNativeQuery
+2. In Repository using Query DSL method and @Query and Using Named(Native)Query options.
+
+JPA Repository Query Precedence
+1. Methods with @Query annotation takes highest precedence
+2. Methods that match a NamedQuery / NamedNativeQuery name takes 2nd highest precedence
+3. Methods that follow Query DSL keyword naming structure
+
+****************************************************************************************
+
+Paging And Sorting : Add Pageable Interface as a parameter in the Query DSL / @Query method argument and return type to Page<>.
+PagingAndSortingRepository Interface has 2 methods
+    Iterable<T> findAll(Sort sort);
+    Page<T> findAll(Pageable pageable);
+
+Repository
+    @Query("select m from Model m where m.price >= :lowest and m.price <= :highest and m.woodType like :wood")
+    Page<Model> queryModelByLowestHighestAndWood(@Param("lowest") BigDecimal lowest,
+                                                 @Param("highest") BigDecimal highest,
+                                                 @Param("wood") String wood,
+                                                 Pageable pageable);
+
+Client Invoking Repository
+public Page<Model> getModelsByPriceRangeAndWoodType(BigDecimal lowest, BigDecimal highest, String wood) {
+		Sort sort = new Sort(Sort.Direction.ASC,"name");
+		Pageable pageable= new PageRequest(0,2, sort);
+		return modelJpaRepository.queryModelByLowestHighestAndWood(lowest,highest,"%"+wood+"%",pageable);
+	}
+Test
+	@Test
+	public void testGetModelsByPriceRangeAndWoodType() throws Exception {
+		Page<Model> mods = modelRepository.getModelsByPriceRangeAndWoodType(BigDecimal.valueOf(1000L), BigDecimal.valueOf(2000L), "Maple");
+		assertEquals(2, mods.getSize());
+	}
+
+
+Page<Model> -> wraps List<Model> + Metadata about Paging Attributes
+
+Page I (getTotalPages(), getTotalElements())
+    -> extends Slice I (getContent(), getNumberOfElements(), getPage())
+
+Slice I -> getContent() returns the original List<Model>
+
+*********************************************************************************************************
+Custom Repositories
+1. Create MyJPARepository I by extending JpaRepository I and MyJPARepositoryCustom Interface I.
+2. Define all the custom methods for MyJPARepositoryCustom interface.
+3. Create Implementation Class & name it as MyJpaRepositoryImpl by implementing the MyJPARepositoryCustom.
+4. Implementation Class MyJpaRepositoryImpl must be named exactly as same as MyJpaRepository Repository  interface , but should have suffix IMPL. This way Spring data jpa knows which implementation to match upto the repository
+5. If you want to change the implementation class name, then
+<jpa:repositories base-packages="com.nsv.repository" repository-impl-postfix="CustomClass">
+CustomClass is the new Suffix Name
+6. Spring Data JPA implementation class implements JpaRepository and also it extends the CustomClass Implementation.
+*********************************************************************************************************
+
+Auditing Support
+@CreatedBy
+@CreatedDate
+@LastModifiedBy
+@LastModifiedDate
+
+AuditorAware Interface -> getCurrentAuditor()
+
+To enable Auditing with Spring Data JPA
+In XML
+<jpa:auditing auditor-aware-ref="SecurityAuditorAware" />
+
+In Java
+@Configuration
+@EnableJpaAuditing
+
+****************************************************************
+Locking
+use @Version
+
+Types of locking
+1. Optimistic Locking : If version number does not match on write, throw OptimisticLockException and rolls back the transaction.
+2. Pessimistic Locking : Long term locks the data for the transaction duration, preventing others from accessing the data until the transaction commits.
+
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+List<Model> findByModelType(String name);
+

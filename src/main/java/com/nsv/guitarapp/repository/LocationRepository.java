@@ -1,4 +1,4 @@
-package com.guitar.db.repository;
+package com.nsv.guitarapp.repository;
 
 import java.util.List;
 
@@ -7,7 +7,7 @@ import javax.persistence.PersistenceContext;
 
 import org.springframework.stereotype.Repository;
 
-import com.guitar.db.model.Location;
+import com.nsv.guitarapp.model.Location;
 
 @Repository
 public class LocationRepository {

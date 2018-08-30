@@ -1,4 +1,4 @@
-package com.guitar.db.model;
+package com.nsv.guitarapp.model;
 
 import java.math.BigDecimal;
 import java.util.Date;

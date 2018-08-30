@@ -1,4 +1,4 @@
-package com.guitar.db.config;
+package com.nsv.guitarapp.config;
 
 import java.util.HashMap;
 import java.util.Map;
